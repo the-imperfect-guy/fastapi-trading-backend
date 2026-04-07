@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trading Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+        }
+
+        .container {
+            width: 350px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1e293b;
+            border-radius: 10px;
+        }
+
+        input, select {
+            width: 90%;
+            padding: 10px;
+            margin: 8px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #38bdf8;
+            color: black;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0ea5e9;
+        }
+
+        button:disabled {
+            background: grey;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin: 10px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #38bdf8;
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>📊 Trading Dashboard</h1>
+
+<div id="status">❌ Not logged in</div>
+<button id="logoutBtn" onclick="logout()" style="display:none;">Logout</button>
+
+<div class="container" id="authBox">
+    <h2>🔐 Login / Signup</h2>
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="signup()">Signup</button>
+</div>
+
+<div class="container">
+    <h2>📈 Add Trade</h2>
+    <input id="stock" placeholder="Stock (AAPL)">
+    <input id="quantity" placeholder="Quantity">
+    <input id="price" placeholder="Price">
+    <select id="type">
+        <option value="buy">Buy</option>
+        <option value="sell">Sell</option>
+    </select>
+    <button id="tradeBtn" onclick="addTrade()">Add Trade</button>
+</div>
+
+<div class="container">
+    <h2>📊 Portfolio</h2>
+    <button id="portfolioBtn" onclick="getPortfolio()">Load Portfolio</button>
+    <div id="output"></div>
+</div>
+
+<script>
+let token = localStorage.getItem("token") || "";
+let currentUser = localStorage.getItem("user") || "";
+
+updateUI();
+
+function updateUI() {
+    const authBox = document.getElementById("authBox");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const tradeBtn = document.getElementById("tradeBtn");
+    const portfolioBtn = document.getElementById("portfolioBtn");
+
+    if (token) {
+        document.getElementById("status").innerText = "✅ Logged in as " + currentUser;
+
+        authBox.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+
+        tradeBtn.disabled = false;
+        portfolioBtn.disabled = false;
+    } else {
+        document.getElementById("status").innerText = "❌ Not logged in";
+
+        authBox.style.display = "block";
+        logoutBtn.style.display = "none";
+
+        tradeBtn.disabled = true;
+        portfolioBtn.disabled = true;
+    }
+}
+
+function clearAuthInputs() {
+    document.getElementById("username").value = "";
+    document.getElementById("password").value = "";
+}
+
+function clearTradeInputs() {
+    document.getElementById("stock").value = "";
+    document.getElementById("quantity").value = "";
+    document.getElementById("price").value = "";
+}
+
+async function signup() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (!username || !password) {
+        return alert("⚠️ Fill all fields");
+    }
+
+    const res = await fetch("http://127.0.0.1:8001/auth/signup", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ username, password })
+    });
+
+    if (res.ok) {
+        alert("✅ Signup successful! Now login.");
+        clearAuthInputs();
+    } else {
+        alert("❌ Signup failed (user may exist)");
+    }
+}
+
+async function login() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (!username || !password) {
+        return alert("⚠️ Fill all fields");
+    }
+
+    const res = await fetch("http://127.0.0.1:8001/auth/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+
+    if (data.access_token) {
+        token = data.access_token;
+        currentUser = username;
+
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", currentUser);
+
+        clearAuthInputs();
+        updateUI();
+
+        alert("✅ Login successful");
+    } else {
+        alert("❌ Invalid credentials");
+    }
+}
+
+function logout() {
+    token = "";
+    currentUser = "";
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    document.getElementById("output").innerHTML = "";
+
+    updateUI();
+
+    alert("Logged out");
+}
+
+async function addTrade() {
+    if (!token) return alert("⚠️ Please login first");
+
+    const stock = document.getElementById("stock").value;
+    const quantity = document.getElementById("quantity").value;
+    const price = document.getElementById("price").value;
+
+    if (!stock || !quantity || !price) {
+        return alert("⚠️ Fill all trade fields");
+    }
+
+    await fetch("http://127.0.0.1:8001/trade", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({
+            stock,
+            quantity: parseInt(quantity),
+            price: parseFloat(price),
+            trade_type: document.getElementById("type").value
+        })
+    });
+
+    clearTradeInputs();
+
+    alert("✅ Trade added");
+
+    // ✅ AUTO REFRESH PORTFOLIO
+    getPortfolio();
+}
+
+async function getPortfolio() {
+    if (!token) return alert("⚠️ Please login first");
+
+    const res = await fetch("http://127.0.0.1:8001/trade/portfolio", {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    });
+
+    const data = await res.json();
+    renderTable(data);
+}
+
+function renderTable(data) {
+    let html = `
+        <table>
+        <tr>
+            <th>Stock</th>
+            <th>Qty</th>
+            <th>Avg Price</th>
+            <th>Current</th>
+            <th>Profit</th>
+        </tr>
+    `;
+
+    for (let stock in data) {
+        let row = data[stock];
+
+        html += `
+            <tr>
+                <td>${stock}</td>
+                <td>${row.quantity}</td>
+                <td>${row.avg_price}</td>
+                <td>${row.current_price}</td>
+                <td>${row.profit}</td>
+            </tr>
+        `;
+    }
+
+    html += "</table>";
+
+    document.getElementById("output").innerHTML = html;
+}
+</script>
+
+</body>
+</html>
