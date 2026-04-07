@@ -71,6 +71,16 @@ uvicorn app.main:app --reload
 
 ---
 
+## 🖥️ Frontend
+
+A simple UI built with HTML, CSS, and JavaScript to interact with the backend APIs.
+
+Run locally:
+open frontend/index.html
+
+
+---
+
 ## 🔐 Authentication Guide
 
 1. Login via `/auth/login`
